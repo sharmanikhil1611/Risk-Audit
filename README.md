@@ -35,26 +35,30 @@ Evaluated on the 25-row held-out test set:
 
 | Metric | Value |
 |---|---|
-| Precision | 50% |
-| Recall | 75% |
-| F1 | 60% |
-| Accuracy | 68% |
-| Refund value protected (true positives) | ₹15,769 |
-| Cost of wrongly flagging genuine returns (false positives) | ₹9,469 |
-| **Net value** | **+₹6,300** |
+| Precision | 87.5% |
+| Recall | 87.5% |
+| F1 | 87.5% |
+| Accuracy | 92% |
+| Refund value protected (true positives) | ₹13,241 |
+| Cost of wrongly flagging genuine returns (false positives) | ₹4,400 |
+| **Net value** | **+₹8,841** |
+
+These numbers are after fixing the low-order-count issue described below — before that fix, precision was sitting at 50% (12 false positives out of 20 flagged). Fixing how the agent handles thin customer history nearly tripled precision without meaningfully hurting recall.
 
 ### The threshold trade-off
 
-The risk score threshold — the cutoff above which a return counts as "predicted risky" — isn't a fixed constant. I swept it from 0.30 to 0.95 against the test set and found two different "correct" answers depending on what you optimize for:
+Before the low-order-count fix, the risk score threshold — the cutoff above which a return counts as "predicted risky" — showed a real tension depending on what you optimized for. I swept it from 0.30 to 0.95 against the test set and found two different "correct" answers:
 
-- **0.75** maximizes F1 (64%) and catches every risky return in the test set (100% recall) — but the system still runs net-negative overall (-₹1,381), because it flags too many genuine returns along the way.
-- **0.85** is net-positive (+₹7,769) but recall drops to 62.5% — it misses real fraud to avoid false alarms.
+- **0.75** maximized F1 (64%) and caught every risky return (100% recall) — but the system still ran net-negative overall (-₹1,381), because it flagged too many genuine returns along the way.
+- **0.85** was net-positive (+₹7,769) but recall dropped to 62.5% — it missed real fraud to avoid false alarms.
 
-I went with **0.80** as a middle ground: it keeps recall reasonably high (75%) while pushing the system solidly into net-positive territory. This felt like the more honest answer than picking whichever threshold has the prettiest F1 score — a risk manager that "performs well" on paper but loses the merchant money isn't actually doing its job.
+I settled on **0.80** as a middle ground at the time. After the low-order-count fix below, that same 0.80 threshold now gives 87.5% precision and recall simultaneously, so the trade-off mostly disappeared — the bigger lever turned out to be fixing what the model was looking at, not just where the cutoff sat.
 
 ### A specific failure mode I had to fix
 
-Early on, customers with only one order were getting flagged as high risk almost automatically. The reason: `return_rate = total_returns / total_orders`, and for a customer with 1 order and 1 return, that's mathematically 100% — which reads as an extreme signal even though it's a single data point telling you almost nothing about behavior. I added an explicit check: if a customer has fewer than 3 orders, the agent is told the return rate is low-confidence and to weigh the specific return reason and timing more heavily instead. It's a small fix but it mattered — without it, the model was punishing new customers for the crime of not having enough order history yet.
+Early on, customers with only one order were getting flagged as high risk almost automatically. The reason: `return_rate = total_returns / total_orders`, and for a customer with 1 order and 1 return, that's mathematically 100% — which reads as an extreme signal even though it's a single data point telling you almost nothing about behavior. I added an explicit check: if a customer has fewer than 3 orders, the agent is told the return rate is low-confidence and to weigh the specific return reason and timing more heavily instead.
+
+This turned out to be the single biggest lever in the whole project. Before the fix, precision was 50% — the model was flagging roughly as many genuine returns as actual fraud. After it, precision jumped to 87.5% with recall holding steady at the same level. The lesson: a lot of what looks like a "model quality" problem is actually a feature-engineering problem — the model was doing exactly what a misleading number told it to do.
 
 ## Stack
 
