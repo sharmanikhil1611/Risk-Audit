@@ -35,13 +35,13 @@ Evaluated on the 25-row held-out test set:
 
 | Metric | Value |
 |---|---|
-| Precision | 87.5% |
-| Recall | 87.5% |
-| F1 | 87.5% |
+| Precision | 80.00% |
+| Recall | 100.00% |
+| F1 | 88.89% |
 | Accuracy | 92% |
-| Refund value protected (true positives) | ₹13,241 |
-| Cost of wrongly flagging genuine returns (false positives) | ₹4,400 |
-| **Net value** | **+₹8,841** |
+| Refund value protected (true positives) | ₹18,012.58 |
+| Cost of wrongly flagging genuine returns (false positives) | ₹74,11.67 |
+| **Net value** | **+₹10,600.91** |
 
 These numbers are after fixing the low-order-count issue described below — before that fix, precision was sitting at 50% (12 false positives out of 20 flagged). Fixing how the agent handles thin customer history nearly tripled precision without meaningfully hurting recall.
 
